@@ -1,0 +1,37 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "andrewmcodes-claude-plugins",
+  "description": "Directory of personal Claude Code extensions",
+  "owner": {
+    "name": "Andrew Mason",
+    "email": "support@andrewmcodes.com"
+  },
+  "plugins": [
+    {
+      "name": "ruby-lsp",
+      "description": "Ruby language server for enhanced code intelligence",
+      "version": "1.0.0",
+      "author": {
+        "name": "Andrew Mason",
+        "email": "support@andrewmcodes.com"
+      },
+      "source": "./plugins/ruby-lsp",
+      "category": "development",
+      "strict": false,
+      "lspServers": {
+        "ruby": {
+          "command": "ruby-lsp",
+          "extensionToLanguage": {
+            ".rb": "ruby",
+            ".erb": "ruby",
+            ".rake": "ruby",
+            ".gemspec": "ruby",
+            "Gemfile": "ruby",
+            "Rakefile": "ruby",
+            ".ru": "ruby"
+          }
+        }
+      }
+    }
+  ]
+}
