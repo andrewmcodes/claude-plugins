@@ -1,0 +1,164 @@
+name: Validate Marketplace
+
+on:
+  pull_request:
+    paths:
+      - '.claude-plugin/marketplace.json'
+      - 'plugins/**'
+  push:
+    branches:
+      - main
+    paths:
+      - '.claude-plugin/marketplace.json'
+      - 'plugins/**'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate JSON syntax
+        run: |
+          echo "Validating marketplace.json syntax..."
+          if ! jq empty .claude-plugin/marketplace.json; then
+            echo "❌ Invalid JSON syntax in marketplace.json"
+            exit 1
+          fi
+          echo "✅ Valid JSON syntax"
+
+      - name: Validate marketplace structure
+        run: |
+          echo "Validating marketplace structure..."
+
+          # Check required marketplace fields
+          if ! jq -e '.name' .claude-plugin/marketplace.json > /dev/null; then
+            echo "❌ Missing required field: name"
+            exit 1
+          fi
+
+          if ! jq -e '.description' .claude-plugin/marketplace.json > /dev/null; then
+            echo "❌ Missing required field: description"
+            exit 1
+          fi
+
+          if ! jq -e '.owner.name' .claude-plugin/marketplace.json > /dev/null; then
+            echo "❌ Missing required field: owner.name"
+            exit 1
+          fi
+
+          if ! jq -e '.owner.email' .claude-plugin/marketplace.json > /dev/null; then
+            echo "❌ Missing required field: owner.email"
+            exit 1
+          fi
+
+          if ! jq -e '.plugins' .claude-plugin/marketplace.json > /dev/null; then
+            echo "❌ Missing required field: plugins array"
+            exit 1
+          fi
+
+          echo "✅ All required marketplace fields present"
+
+      - name: Validate plugin entries
+        run: |
+          echo "Validating plugin entries..."
+
+          # Get plugin count
+          PLUGIN_COUNT=$(jq '.plugins | length' .claude-plugin/marketplace.json)
+          echo "Found $PLUGIN_COUNT plugin(s) to validate"
+
+          # Validate each plugin
+          for i in $(seq 0 $(($PLUGIN_COUNT - 1))); do
+            PLUGIN_NAME=$(jq -r ".plugins[$i].name" .claude-plugin/marketplace.json)
+            echo ""
+            echo "Validating plugin: $PLUGIN_NAME"
+
+            # Check required fields
+            REQUIRED_FIELDS=("name" "description" "version" "author.name" "author.email" "source" "category")
+
+            for field in "${REQUIRED_FIELDS[@]}"; do
+              if [ "$field" = "author.name" ] || [ "$field" = "author.email" ]; then
+                if ! jq -e ".plugins[$i].author.$(echo $field | cut -d. -f2)" .claude-plugin/marketplace.json > /dev/null; then
+                  echo "❌ Plugin '$PLUGIN_NAME' missing required field: $field"
+                  exit 1
+                fi
+              else
+                if ! jq -e ".plugins[$i].$field" .claude-plugin/marketplace.json > /dev/null; then
+                  echo "❌ Plugin '$PLUGIN_NAME' missing required field: $field"
+                  exit 1
+                fi
+              fi
+            done
+
+            # Validate category
+            CATEGORY=$(jq -r ".plugins[$i].category" .claude-plugin/marketplace.json)
+            VALID_CATEGORIES=("development" "productivity" "data" "ai" "security" "testing")
+
+            if [[ ! " ${VALID_CATEGORIES[@]} " =~ " ${CATEGORY} " ]]; then
+              echo "❌ Plugin '$PLUGIN_NAME' has invalid category: $CATEGORY"
+              echo "   Valid categories: ${VALID_CATEGORIES[*]}"
+              exit 1
+            fi
+
+            # Validate version format (basic semver check)
+            VERSION=$(jq -r ".plugins[$i].version" .claude-plugin/marketplace.json)
+            if ! [[ $VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "❌ Plugin '$PLUGIN_NAME' has invalid version format: $VERSION (expected semver: X.Y.Z)"
+              exit 1
+            fi
+
+            echo "✅ Plugin '$PLUGIN_NAME' has all required fields"
+          done
+
+      - name: Validate plugin directories
+        run: |
+          echo "Validating plugin directories..."
+
+          PLUGIN_COUNT=$(jq '.plugins | length' .claude-plugin/marketplace.json)
+
+          for i in $(seq 0 $(($PLUGIN_COUNT - 1))); do
+            PLUGIN_NAME=$(jq -r ".plugins[$i].name" .claude-plugin/marketplace.json)
+            PLUGIN_SOURCE=$(jq -r ".plugins[$i].source" .claude-plugin/marketplace.json)
+
+            # Check if directory exists
+            if [ ! -d "$PLUGIN_SOURCE" ]; then
+              echo "❌ Plugin directory not found: $PLUGIN_SOURCE (for plugin: $PLUGIN_NAME)"
+              exit 1
+            fi
+
+            echo "✅ Directory exists for plugin: $PLUGIN_NAME"
+          done
+
+      - name: Validate plugin READMEs
+        run: |
+          echo "Validating plugin READMEs..."
+
+          PLUGIN_COUNT=$(jq '.plugins | length' .claude-plugin/marketplace.json)
+          WARNINGS=0
+
+          for i in $(seq 0 $(($PLUGIN_COUNT - 1))); do
+            PLUGIN_NAME=$(jq -r ".plugins[$i].name" .claude-plugin/marketplace.json)
+            PLUGIN_SOURCE=$(jq -r ".plugins[$i].source" .claude-plugin/marketplace.json)
+
+            # Check if README exists
+            if [ ! -f "$PLUGIN_SOURCE/README.md" ]; then
+              echo "⚠️  README.md not found for plugin: $PLUGIN_NAME"
+              WARNINGS=$((WARNINGS + 1))
+            else
+              echo "✅ README.md exists for plugin: $PLUGIN_NAME"
+            fi
+          done
+
+          if [ $WARNINGS -gt 0 ]; then
+            echo ""
+            echo "⚠️  $WARNINGS plugin(s) missing README.md (recommended but not required)"
+          fi
+
+      - name: Summary
+        run: |
+          echo ""
+          echo "================================================"
+          echo "✅ Marketplace validation completed successfully"
+          echo "================================================"
