@@ -82,9 +82,3 @@ Plugins are organized into categories:
 ## License
 
 MIT License - see [LICENSE](./LICENSE) for details.
-
-## Support
-
-For issues or questions about this marketplace, contact [support@andrewmcodes.com](mailto:support@andrewmcodes.com).
-
-For issues with Claude Code itself, visit the [Claude Code documentation](https://docs.anthropic.com/claude-code) or [GitHub repository](https://github.com/anthropics/claude-code).
