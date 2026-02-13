@@ -44,7 +44,7 @@ Install plugins from this marketplace using the Claude Code CLI:
 
 ### Adding This Marketplace
 
-If this is your first time using this marketplace, Claude Code may need to discover it. The marketplace is identified by the owner email `support@andrewmcodes.com`.
+If this is your first time using this marketplace, Claude Code may need to discover it.
 
 ## Contributing
 
